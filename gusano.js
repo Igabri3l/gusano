@@ -1,0 +1,157 @@
+const STATE_RUNNING = 1
+const STATE_LOSING = 2
+
+const TICK = 80
+const SQUARE_SIZE = 10
+const BOARD_WIDTH = 50
+const BOARD_HEIGHT = 50
+const GROW_SCALE = 10
+const DIRECCIONS_MAP = {
+  'A': [-1, 0],
+  'D': [1, 0],
+  'S': [0, 1],
+  'W': [0, -1],
+  'a': [-1, 0],
+  'd': [1, 0],
+  's': [0, 1],
+  'w': [0, -1]
+}
+
+let state = {
+  canvas: null,
+  context: null,
+  snake:[{x: 10, y: 0}],
+  direction: {x: 1, y: 0},
+  prey: {x: 0, y: 0},
+  growing: 0,
+  runstate: STATE_RUNNING
+}
+
+function randomXY() {
+  return {
+    x: parseInt(Math.random() * BOARD_WIDTH),
+    y: parseInt(Math.random() * BOARD_HEIGHT)
+  }
+}
+
+function drawPixel(color, x, y) {
+  state.context.fillStyle = color
+  state.context.fillRect(
+    x * SQUARE_SIZE,
+    y * SQUARE_SIZE,
+    SQUARE_SIZE,
+    SQUARE_SIZE
+  )
+}
+
+function draw() {
+  state.context.clearRect(0, 0, 500, 500)
+
+  for (let idx = 0; idx < state.snake.length; idx++) {
+    const {x, y} = state.snake[idx];
+    drawPixel('#22dd22', x, y)
+  }
+
+  const {x, y} = state.prey
+  drawPixel('yellow', x, y)
+}
+
+function tick() {
+  const head = state.snake[0]
+  const dx = state.direction.x
+  const dy = state.direction.y
+  const  highextIndex = state.snake.length - 1
+  let tail = {}
+  let interval = TICK
+
+  Object.assign(tail, state.snake[highextIndex])
+
+  let didScore = (
+    head.x === state.prey.x 
+    && head.y === state.prey.y
+  )
+
+  if(state.runstate ===STATE_RUNNING) {
+    for (let idx = highextIndex; idx > -1; idx--) {
+      const sq = state.snake[idx]
+      
+      if (idx === 0) {
+        sq.x += dx
+        sq.y += dy
+      } else {
+        sq.x = state.snake[idx - 1].x
+        sq.y = state.snake[idx - 1].y
+      }
+    }
+  } else if (state.runstate === STATE_LOSING) {
+    interval = 10
+
+    if (state.snake.length > 0) {
+      state.snake.splice(0, 1)
+    }
+
+    if (state.snake.length === 0) {
+      state.runstate = STATE_RUNNING
+      state.snake.push(randomXY())
+      state.prey = randomXY()
+    }
+  }
+
+  if (dectectCollision()){
+    state.runstate = STATE_LOSING
+    state.growing = 0
+  }
+
+  if (didScore) {
+    state.growing += GROW_SCALE
+    state.prey = randomXY()
+  }
+
+  if (state.growing > 0) {
+    state.snake.push(tail)
+    state.growing -= 1
+  }
+
+  requestAnimationFrame(draw)
+  setTimeout(tick, interval);
+}
+
+function dectectCollision() {
+  const head = state.snake[0]
+
+  if (head.x < 0
+    || head.x >= BOARD_WIDTH
+    || head.y >= BOARD_HEIGHT
+    || head.y <0
+    ) {
+      return true
+    }
+
+    for (let idx = 1; idx < state.snake.length; idx++) {
+      const sq = state.snake[idx];
+      
+      if (sq.x === head.x && sq.y === head.y) {
+        return true
+      }
+    }
+    return false
+}
+
+window.onload = function () {
+  state.canvas = document.querySelector('canvas')
+  state.context = state.canvas.getContext('2d')
+
+  window.onkeydown = function (e) {
+    const direction = DIRECCIONS_MAP[e.key]
+
+    if (direction) {
+      const [x, y] = direction
+      if (-x !== state.direction.x
+        && -y !== state.direction.y ) {
+        state.direction.x = x
+        state.direction.y = y
+      }
+    }
+  }
+  tick()
+}
